@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tugas RESTful API - Supabase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-2xl font-bold mb-6 text-gray-800 text-center">Dashboard Data Mahasiswa</h1>
+
+        <form id="form-mahasiswa" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-gray-50 p-4 rounded-md">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700">NIM</label>
+                <input type="text" id="nim" required class="w-full mt-1 p-2 border rounded-md bg-white">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700">Nama</label>
+                <input type="text" id="nama" required class="w-full mt-1 p-2 border rounded-md bg-white">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700">Jurusan</label>
+                <input type="text" id="jurusan" required class="w-full mt-1 p-2 border rounded-md bg-white">
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition">
+                    Tambah Data
+                </button>
+            </div>
+        </form>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border rounded-md overflow-hidden">
+                <thead class="bg-gray-800 text-white">
+                    <tr>
+                        <th class="py-3 px-4 text-left">NIM</th>
+                        <th class="py-3 px-4 text-left">Nama</th>
+                        <th class="py-3 px-4 text-left">Jurusan</th>
+                        <th class="py-3 px-4 text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tabel-body" class="text-gray-700 divide-y">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // ===================================================================
+        // ⚠️ ATURAN UTAMA: SINKRONISASI KONEKSI PROYEK SUPABASE KAMU
+        // ===================================================================
+        const SUPABASE_URL = "https://ibbjcyvqiunnusgkxwxq.supabase.co";
+        
+        // TEMPEL / PASTE PUBLISHABLE KEY (DEFAULT) KAMU DI SINI:
+        const SUPABASE_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImliYmpjeXZxaXVubnVzZ2t4d3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTY0MzcsImV4cCI6MjA5NDg5MjQzN30.tt2-ip20-r4jp-7you3BOtUPC9yYk5CtLHFAa9FR798"
+        // ===================================================================
+
+        const API_URL = `${SUPABASE_URL}/rest/v1/mahasiswa`;
+
+        const headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": `Bearer ${SUPABASE_KEY}`,
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        };
+
+        // 1. GET DATA (Read)
+        async function ambilData() {
+            try {
+                const response = await fetch(`${API_URL}?select=*`, { 
+                    method: "GET", 
+                    headers: headers 
+                });
+                const data = await response.json();
+                
+                const tbody = document.getElementById("tabel-body");
+                tbody.innerHTML = ""; 
+
+                if (Array.isArray(data) && data.length > 0) {
+                    data.forEach(mhs => {
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-gray-50 border-b">
+                                <td class="py-3 px-4">${mhs.nim}</td>
+                                <td class="py-3 px-4 font-medium">${mhs.nama}</td>
+                                <td class="py-3 px-4">${mhs.jurusan}</td>
+                                <td class="py-3 px-4 text-center">
+                                    <button onclick="hapusData('${mhs.id}')" class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded transition">
+                                        Hapus
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="py-6 text-center text-gray-500 bg-gray-50">
+                                Belum ada data di database atau RLS memblokir akses.
+                            </td>
+                        </tr>`;
+                }
+            } catch (err) {
+                console.error("Gagal mengambil data dari Supabase:", err);
+            }
+        }
+
+        // 2. POST DATA (Create)
+        document.getElementById("form-mahasiswa").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            
+            const nim = document.getElementById("nim").value;
+            const nama = document.getElementById("nama").value;
+            const jurusan = document.getElementById("jurusan").value;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: headers,
+                    body: JSON.stringify([{ nim: nim, nama: nama, jurusan: jurusan }]) // Format Array Object [] wajib untuk Supabase
+                });
+
+                if (response.ok || response.status === 201) {
+                    document.getElementById("form-mahasiswa").reset(); 
+                    
+                    // Beri jeda 400ms agar database selesai memproses, lalu refresh tabel
+                    setTimeout(() => {
+                        ambilData(); 
+                    }, 400);
+                } else {
+                    const errorData = await response.json();
+                    alert("Gagal menambah data!\nDetail: " + JSON.stringify(errorData));
+                }
+            } catch (err) {
+                console.error("Error proses POST data:", err);
+            }
+        });
+
+        // 3. DELETE DATA (Delete)
+        async function hapusData(id) {
+            if (confirm("Yakin ingin menghapus data ini?")) {
+                try {
+                    const response = await fetch(`${API_URL}?id=eq.${id}`, {
+                        method: "DELETE",
+                        headers: headers
+                    });
+
+                    if (response.ok) {
+                        setTimeout(() => {
+                            ambilData(); 
+                        }, 300);
+                    } else {
+                        alert("Gagal menghapus data.");
+                    }
+                } catch (err) {
+                    console.error("Error proses DELETE data:", err);
+                }
+            }
+        }
+
+        // Load data otomatis pertama kali halaman dibuka
+        ambilData();
+    </script>
+</body>
+</html>
